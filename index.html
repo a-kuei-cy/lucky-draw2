@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>現場抽獎・抽簽</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --ink:#1c1f3a; --ink2:#2a2e52; --paper:#fff7e8; --red:#c8102e; --gold:#f2b632; --mute:#a9acc8;
+  --serif:'Noto Serif TC','Songti TC','PMingLiU',serif;
+  --sans:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:var(--sans);background:var(--ink);color:var(--paper);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+button,input{font:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.hidden{display:none!important}
+
+/* ---------- 來賓報名（?join=1） ---------- */
+#guest{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.ticket{width:100%;max-width:420px;background:var(--paper);color:var(--ink);border-radius:18px;padding:32px 26px 28px;position:relative}
+.ticket::before,.ticket::after{content:"";position:absolute;top:96px;width:26px;height:26px;border-radius:50%;background:var(--ink)}
+.ticket::before{left:-13px}.ticket::after{right:-13px}
+.ticket h1{font:900 30px/1.2 var(--serif);margin:0 0 6px;color:var(--red)}
+.ticket .sub{margin:0 0 34px;color:#5b5e7e;font-size:15px}
+.ticket label{display:block;font-weight:700;margin-bottom:8px}
+.ticket input{width:100%;font-size:22px;padding:14px 16px;border:2px solid var(--ink);border-radius:10px;background:#fff;color:var(--ink)}
+.ticket .go{width:100%;margin-top:16px;padding:16px;font-size:20px;font-weight:700;border:0;border-radius:10px;background:var(--red);color:#fff}
+.ticket .go:disabled{opacity:.5}
+.msg{margin-top:16px;min-height:1.5em;font-weight:500}
+.msg.ok{color:#0b7a3b}.msg.err{color:var(--red)}
+.done{text-align:center;padding:12px 0}
+.done b{display:block;font:900 34px/1.3 var(--serif);margin:10px 0;word-break:break-all}
+
+/* ---------- 分頁 ---------- */
+.tabs{display:flex;gap:6px;padding:14px 24px 0;background:var(--ink2);border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:5}
+.tabs button{border:0;background:#33376a;color:var(--paper);padding:12px 30px;font:900 20px var(--serif);border-radius:12px 12px 0 0}
+.tabs button[aria-selected=true]{background:var(--gold);color:var(--ink)}
+.tabs .tcount{margin-left:auto;align-self:center;color:var(--mute);font-size:15px;padding-bottom:6px}
+.tabs .tcount b{color:var(--gold);font-size:20px}
+
+/* ---------- ① 登記頁 ---------- */
+#paneReg{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:20px 36px;align-items:start;padding:24px;max-width:1200px;margin:0 auto}
+.regL,.regR{display:flex;flex-direction:column;gap:16px;min-width:0}
+h2{font:900 24px var(--serif);margin:0;color:var(--gold)}
+.qrbox{background:#fff;border-radius:14px;padding:14px;display:flex;justify-content:center;color:var(--ink)}
+.qrbox canvas,.qrbox img{max-width:100%;height:auto}
+.count{display:flex;align-items:baseline;gap:8px}
+.count strong{font:900 64px/1 var(--serif);color:var(--gold)}
+.count span{color:var(--mute)}
+.names{min-height:240px;max-height:50vh;overflow:auto;background:#22264a;border-radius:10px;padding:12px 14px;font-size:18px;line-height:1.9;display:flex;flex-wrap:wrap;gap:4px 14px;align-content:flex-start}
+.names i{font-style:normal}
+.names i.won{color:var(--mute);text-decoration:line-through}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid #5a5f94;background:transparent;color:var(--paper);border-radius:8px;padding:8px 12px;font-size:14px}
+.btn:hover{background:#3b3f6b}
+.btn.danger{border-color:#e0627a;color:#ffb3c0}
+details{background:#22264a;border-radius:10px;padding:10px 12px;font-size:14px}
+summary{cursor:pointer;font-weight:700}
+details label{display:block;margin-top:10px;color:var(--mute);font-size:13px}
+details input{width:100%;margin-top:4px;padding:8px;border-radius:6px;border:1px solid #5a5f94;background:var(--ink);color:var(--paper)}
+.warn{background:#5a1b28;color:#ffd5dc;border-radius:8px;padding:10px 12px;font-size:14px}
+
+/* ---------- ② 抽獎頁 ---------- */
+#paneDraw{padding:24px 36px;display:flex;flex-direction:column;gap:20px;min-height:calc(100vh - 70px)}
+.bar{display:flex;gap:14px;align-items:end;flex-wrap:wrap}
+.seg{display:inline-flex;border:2px solid var(--gold);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--gold);padding:10px 20px;font:700 18px var(--sans)}
+.seg button[aria-pressed=true]{background:var(--gold);color:var(--ink)}
+.field label{display:block;font-size:13px;color:var(--mute);margin-bottom:4px}
+.field input{padding:10px 12px;border-radius:8px;border:1px solid #5a5f94;background:var(--ink2);color:var(--paper);font-size:18px}
+.field input[type=number]{width:90px}
+.field input[type=text]{width:220px}
+.draw{margin-left:auto;padding:14px 38px;font:900 24px var(--serif);border:0;border-radius:12px;background:var(--red);color:#fff;box-shadow:0 5px 0 #7d0a1c}
+.draw:active{transform:translateY(3px);box-shadow:0 2px 0 #7d0a1c}
+.draw:disabled{opacity:.45}
+.stage{flex:1;min-height:340px;background:var(--paper);color:var(--ink);border-radius:18px;padding:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center}
+.stage .title{font:700 22px var(--sans);color:#5b5e7e}
+.roll{font:900 clamp(52px,9vw,120px)/1.1 var(--serif);color:var(--red);word-break:break-all}
+.winners{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;width:100%}
+.slip{background:#fff;border:3px solid var(--red);border-radius:6px;padding:16px 22px;min-width:150px;animation:pop .45s cubic-bezier(.2,1.4,.4,1) both;animation-delay:calc(var(--i)*.12s)}
+.slip small{display:block;color:#8a8da8;font-size:13px;margin-bottom:4px}
+.slip b{font:900 var(--fs,44px)/1.2 var(--serif);color:var(--ink);word-break:break-all}
+@keyframes pop{from{transform:scale(.4) rotate(-6deg);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.slip{animation:none}}
+.log{background:var(--ink2);border-radius:12px;padding:14px 18px;max-height:24vh;overflow:auto;font-size:15px;line-height:1.8}
+.log h3{margin:0 0 6px;font-size:15px;color:var(--gold)}
+.log div b{color:var(--gold);margin-right:8px}
+
+@media (max-width:860px){
+  #paneReg{grid-template-columns:1fr;padding:16px}
+  #paneDraw{padding:20px 16px}
+  .draw{margin-left:0;width:100%}
+  .tabs{padding:10px 12px 0}
+  .tabs button{padding:10px 18px;font-size:17px}
+  .tabs .tcount{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== 來賓報名頁（掃 QR 進入） ===== -->
+<section id="guest" class="hidden">
+  <div class="ticket">
+    <h1 id="gTitle">抽獎報名</h1>
+    <p class="sub">填寫姓名即可參加抽獎</p>
+    <div id="gForm">
+      <label for="gName">你的姓名</label>
+      <input id="gName" maxlength="20" autocomplete="name" placeholder="例如：王小明">
+      <button class="go" id="gGo">送出報名</button>
+      <div class="msg" id="gMsg" role="status"></div>
+    </div>
+    <div class="done hidden" id="gDone">
+      <div>報名完成</div>
+      <b id="gDoneName"></b>
+      <div>請留意大螢幕，祝你好運！</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 主持頁：兩個分頁 ===== -->
+<section id="host" class="hidden">
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tabRegBtn" aria-selected="true">① 登記</button>
+    <button role="tab" id="tabDrawBtn" aria-selected="false">② 抽獎</button>
+    <div class="tcount">已報名 <b id="tcnt">0</b> 人</div>
+  </nav>
+
+  <!-- 分頁① 登記 -->
+  <div id="paneReg">
+    <div class="regL">
+      <h2 id="sideTitle">掃 QR 報名</h2>
+      <div class="qrbox"><div id="qr"></div></div>
+      <div class="warn hidden" id="fileWarn">目前是用本機檔案開啟，來賓手機掃不到。請先把本檔放到 GitHub Pages 等公開網址再開啟。</div>
+    </div>
+    <div class="regR">
+      <div class="count"><strong id="cnt">0</strong><span>人已報名（可抽 <b id="poolCnt">0</b> 人）</span></div>
+      <div class="names" id="names"></div>
+      <div class="row">
+        <button class="btn" id="btnRefresh">立即更新</button>
+        <button class="btn" id="btnLock">停止報名</button>
+        <button class="btn danger" id="btnClear">清空名單</button>
+        <button class="btn" id="btnGoDraw" style="margin-left:auto;border-color:var(--gold);color:var(--gold)">前往抽獎 ▶</button>
+      </div>
+      <details id="settings">
+        <summary>設定</summary>
+        <label>Apps Script 網頁應用程式網址
+          <input id="sApi" placeholder="https://script.google.com/macros/s/…/exec">
+        </label>
+        <label>活動名稱
+          <input id="sTitle" placeholder="例如：感恩茶會大抽獎">
+        </label>
+        <label>管理密碼（鎖定／清空用）
+          <input id="sKey" type="password">
+        </label>
+        <div class="row" style="margin-top:12px"><button class="btn" id="sSave">儲存並更新 QR</button></div>
+      </details>
+    </div>
+  </div>
+
+  <!-- 分頁② 抽獎 -->
+  <div id="paneDraw" class="hidden">
+    <div class="bar">
+      <div class="seg" role="group" aria-label="模式">
+        <button id="mLottery" aria-pressed="true">抽獎</button>
+        <button id="mDraw" aria-pressed="false">抽簽</button>
+      </div>
+      <div class="field"><label for="nInp">本輪抽幾位</label><input id="nInp" type="number" min="1" value="1"></div>
+      <div class="field" id="prizeField"><label for="prizeInp">獎項名稱</label><input id="prizeInp" type="text" placeholder="例如：頭獎"></div>
+      <button class="draw" id="btnDraw">開始抽獎</button>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="title" id="stTitle">準備好了嗎？</div>
+      <div class="roll" id="stRoll">？？？</div>
+      <div class="winners" id="stWin"></div>
+    </div>
+
+    <div class="log">
+      <h3>抽出紀錄　<button class="btn" id="btnResetWin" style="padding:2px 8px;font-size:12px">重置中獎（全員重回籤筒）</button></h3>
+      <div id="logList">尚無紀錄</div>
+    </div>
+  </div>
+</section>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const q = new URLSearchParams(location.search);
+  const LS = {
+    get(k, d = '') { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+  };
+  async function callApi(api, params) {
+    const u = new URL(api);
+    Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
+    const r = await fetch(u.toString());
+    return r.json();
+  }
+
+  /* =============== 來賓報名（?join=1） =============== */
+  if (q.get('join')) {
+    $('guest').classList.remove('hidden');
+    const api = q.get('api'), title = q.get('t'), KEY = 'ld_sent_' + api;
+    if (title) { $('gTitle').textContent = title; document.title = title; }
+    const showDone = name => {
+      $('gForm').classList.add('hidden'); $('gDone').classList.remove('hidden'); $('gDoneName').textContent = name;
+    };
+    const sent = LS.get(KEY); if (api && sent) showDone(sent);
+    async function submit() {
+      const name = $('gName').value.trim(), msg = $('gMsg'); msg.className = 'msg';
+      if (!api) { msg.textContent = '報名連結不完整，請重新掃描 QR'; msg.classList.add('err'); return; }
+      if (!name) { msg.textContent = '請輸入姓名'; msg.classList.add('err'); return; }
+      $('gGo').disabled = true; msg.textContent = '送出中…';
+      try {
+        const r = await callApi(api, { action: 'add', name });
+        if (r.ok) { LS.set(KEY, name); showDone(name); }
+        else { msg.textContent = r.msg || '報名失敗'; msg.classList.add('err'); }
+      } catch (e) { msg.textContent = '連線失敗，請檢查網路後再試'; msg.classList.add('err'); }
+      $('gGo').disabled = false;
+    }
+    $('gGo').onclick = submit;
+    $('gName').addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    return;
+  }
+
+  /* =============== 主持頁 =============== */
+  $('host').classList.remove('hidden');
+  const S = {
+    api: LS.get('ld_api'), title: LS.get('ld_title'), key: LS.get('ld_key'),
+    people: [], won: new Set(), mode: 'lottery', seq: 0, rolling: false, open: true, rounds: []
+  };
+  $('sApi').value = S.api; $('sTitle').value = S.title; $('sKey').value = S.key;
+  if (!S.api) $('settings').open = true;
+  if (location.protocol === 'file:') $('fileWarn').classList.remove('hidden');
+
+  /* 分頁切換 */
+  function showTab(t) {
+    const reg = t === 'reg';
+    $('paneReg').classList.toggle('hidden', !reg);
+    $('paneDraw').classList.toggle('hidden', reg);
+    $('tabRegBtn').setAttribute('aria-selected', reg);
+    $('tabDrawBtn').setAttribute('aria-selected', !reg);
+    if (!reg) refresh();
+  }
+  $('tabRegBtn').onclick = () => showTab('reg');
+  $('tabDrawBtn').onclick = () => showTab('draw');
+  $('btnGoDraw').onclick = () => showTab('draw');
+
+  /* QR：指向本頁 ?join=1 */
+  function joinUrl() {
+    const u = new URL(location.href.split(/[?#]/)[0]);
+    u.searchParams.set('join', '1');
+    u.searchParams.set('api', S.api);
+    if (S.title) u.searchParams.set('t', S.title);
+    return u.toString();
+  }
+  function drawQR() {
+    const box = $('qr'); box.innerHTML = '';
+    if (!S.api) { box.textContent = '請先在「設定」填入 Apps Script 網址'; return; }
+    try { new QRCode(box, { text: joinUrl(), width: 300, height: 300, correctLevel: QRCode.CorrectLevel.M }); }
+    catch { box.textContent = 'QR 產生失敗'; }
+    $('sideTitle').textContent = S.title || '掃 QR 報名';
+  }
+  $('sSave').onclick = () => {
+    S.api = $('sApi').value.trim(); S.title = $('sTitle').value.trim(); S.key = $('sKey').value;
+    LS.set('ld_api', S.api); LS.set('ld_title', S.title); LS.set('ld_key', S.key);
+    drawQR(); refresh();
+  };
+
+  const pool = () => S.people.filter(n => !S.won.has(n));
+
+  function renderNames() {
+    const box = $('names'); box.innerHTML = '';
+    S.people.forEach(n => {
+      const i = document.createElement('i'); i.textContent = n;
+      if (S.won.has(n)) i.className = 'won';
+      box.appendChild(i);
+    });
+    $('cnt').textContent = S.people.length;
+    $('tcnt').textContent = S.people.length;
+    $('poolCnt').textContent = pool().length;
+    $('btnLock').textContent = S.open ? '停止報名' : '重新開放';
+    $('btnDraw').disabled = S.rolling || pool().length === 0;
+  }
+
+  async function refresh() {
+    if (!S.api) return;
+    try {
+      const r = await callApi(S.api, { action: 'list' });
+      if (r.ok) { S.people = r.names; S.open = r.open; renderNames(); }
+    } catch {}
+  }
+  $('btnRefresh').onclick = refresh;
+  setInterval(() => { if (!S.rolling) refresh(); }, 4000);
+
+  $('btnLock').onclick = async () => {
+    if (!S.api) return;
+    const r = await callApi(S.api, { action: 'setOpen', key: S.key, value: String(!S.open) });
+    if (!r.ok) return alert(r.msg || '操作失敗');
+    S.open = r.open; renderNames();
+  };
+  $('btnClear').onclick = async () => {
+    if (!S.api) return;
+    if (!confirm('確定清空試算表中的所有報名名單？此動作無法復原。')) return;
+    const r = await callApi(S.api, { action: 'clear', key: S.key });
+    if (!r.ok) return alert(r.msg || '操作失敗');
+    S.won.clear(); S.seq = 0; S.rounds = []; renderLog(); await refresh();
+  };
+
+  /* 模式 */
+  function setMode(m) {
+    S.mode = m;
+    $('mLottery').setAttribute('aria-pressed', m === 'lottery');
+    $('mDraw').setAttribute('aria-pressed', m === 'draw');
+    $('prizeField').classList.toggle('hidden', m !== 'lottery');
+    $('btnDraw').textContent = m === 'lottery' ? '開始抽獎' : '抽一籤';
+    if (m === 'draw') $('nInp').value = 1;
+  }
+  $('mLottery').onclick = () => setMode('lottery');
+  $('mDraw').onclick = () => setMode('draw');
+  setMode('lottery');
+
+  /* 隨機：使用 crypto，不重複 */
+  function rnd(max) {
+    const a = new Uint32Array(1), lim = Math.floor(0x100000000 / max) * max;
+    do { crypto.getRandomValues(a); } while (a[0] >= lim);
+    return a[0] % max;
+  }
+  function pick(arr, n) {
+    const a = arr.slice(), out = [];
+    for (let i = 0; i < n; i++) { const j = rnd(a.length); out.push(a.splice(j, 1)[0]); }
+    return out;
+  }
+
+  $('btnDraw').onclick = async () => {
+    if (S.rolling) return;
+    await refresh();
+    const p = pool();
+    if (!p.length) return alert('籤筒已空，沒有人可以抽了');
+    let n = Math.max(1, parseInt($('nInp').value, 10) || 1);
+    if (n > p.length) { n = p.length; $('nInp').value = n; }
+    const prize = $('prizeInp').value.trim();
+
+    S.rolling = true; $('btnDraw').disabled = true;
+    $('stWin').innerHTML = '';
+    $('stTitle').textContent = S.mode === 'lottery' ? (prize ? `抽「${prize}」中…` : '抽獎中…') : '抽籤中…';
+    const roll = $('stRoll'); roll.style.display = '';
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const tick = setInterval(() => { roll.textContent = p[rnd(p.length)]; }, 70);
+    await new Promise(r => setTimeout(r, reduce ? 400 : 2200));
+    clearInterval(tick);
+
+    const res = pick(p, n);
+    res.forEach(x => S.won.add(x));
+    const start = S.seq + 1; S.seq += n;
+    roll.style.display = 'none';
+    $('stTitle').textContent = S.mode === 'lottery'
+      ? (prize ? `🎉 ${prize}　得主` : '🎉 恭喜得主') : `第 ${start}${n > 1 ? '～' + S.seq : ''} 籤`;
+    const fs = n <= 2 ? 64 : n <= 6 ? 46 : n <= 12 ? 34 : 26;
+    const wrap = $('stWin');
+    res.forEach((name, i) => {
+      const d = document.createElement('div'); d.className = 'slip';
+      d.style.setProperty('--i', i); d.style.setProperty('--fs', fs + 'px');
+      const s = document.createElement('small'); s.textContent = S.mode === 'lottery' ? (prize || '得獎') : `第 ${start + i} 籤`;
+      const b = document.createElement('b'); b.textContent = name;
+      d.append(s, b); wrap.appendChild(d);
+    });
+    S.rounds.unshift({ label: S.mode === 'lottery' ? (prize || '抽獎') : `第 ${start}${n > 1 ? '～' + S.seq : ''} 籤`, names: res });
+    renderLog();
+    S.rolling = false; renderNames();
+  };
+
+  function renderLog() {
+    const box = $('logList'); box.innerHTML = '';
+    if (!S.rounds.length) { box.textContent = '尚無紀錄'; return; }
+    S.rounds.forEach(r => {
+      const d = document.createElement('div');
+      const b = document.createElement('b'); b.textContent = r.label;
+      d.append(b, r.names.join('、')); box.appendChild(d);
+    });
+  }
+
+  $('btnResetWin').onclick = () => {
+    if (!confirm('讓所有人重新回到籤筒？（不會動到試算表）')) return;
+    S.won.clear(); S.seq = 0; S.rounds = []; renderLog(); renderNames();
+    $('stTitle').textContent = '準備好了嗎？'; $('stRoll').style.display = ''; $('stRoll').textContent = '？？？'; $('stWin').innerHTML = '';
+  };
+
+  drawQR(); refresh(); renderNames();
+})();
+</script>
+</body>
+</html>
